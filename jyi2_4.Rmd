@@ -1,0 +1,129 @@
+---
+title: "Assignment for Module 4"
+author: "Jingting Yi"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Formulate the problem
+
+Let $x_{ij}$ be the number of products with the size of $i$ ($i=1,2,3$ for small, medium and large size) produced at the $j$-th plant ($j=1,2,3$).
+
+The total profit from those products, which will be the objective of this problem, is:
+$$
+Z=300(x_{11}+x_{12}+x_{13})+360(x_{21}+x_{22}+x_{23})+420(x_{31}+x_{32}+x_{33})
+$$
+
+The constraints of this problem include:
+
+1. The number of products produced at each plant should not exceed the excess capacity at that plant:
+
+  $x_{11}+x_{21}+x_{31} \leq 750$
+  
+  $x_{12}+x_{22}+x_{32} \leq 900$
+  
+  $x_{13}+x_{23}+x_{33} \leq 450$
+
+2. The storage space taken by the products should not exceed the available in-process storage space at each plant:
+
+  $12x_{11}+15x_{21}+20x_{31} \leq 13000$
+  
+  $12x_{12}+15x_{22}+20x_{32} \leq 12000$
+  
+  $12x_{13}+15x_{23}+20x_{33} \leq 5000$
+  
+3. The total number of products with each size should not exceed the sales forecasts:
+
+  $x_{11}+x_{12}+x_{13} \leq 750$
+  
+  $x_{21}+x_{22}+x_{23} \leq 1200$
+  
+  $x_{31}+x_{32}+x_{33} \leq 900$
+  
+4. The percentage of excess capacity used at each plant should be the same:
+  
+  $(x_{11}+x_{21}+x_{31}) / 750 = (x_{12}+x_{22}+x_{32}) / 900$
+  
+  $(x_{12}+x_{22}+x_{32}) / 900 = (x_{13}+x_{23}+x_{33}) / 450$
+  
+  $(x_{13}+x_{23}+x_{33}) / 450 = (x_{11}+x_{21}+x_{31}) / 750$
+
+
+
+# Represent the LP problem in R
+
+```{r}
+library(lpSolve)
+```
+
+Since the problem is formulated in R for `lpSolve` directly as variables, no `.lp` file is required.
+
+```{r}
+# Assume the parameters are arranged as:
+# x11, x12, x13, x21, x22, x23, x31, x32, x33
+
+# Objective function
+obj.fun <- c(300, 300, 300, 360, 360, 360, 420, 420, 420)
+
+# Constraints
+constr <- matrix(c(1, 0, 0, 1, 0, 0, 1, 0, 0,
+                   0, 1, 0, 0, 1, 0, 0, 1, 0,
+                   0, 0, 1, 0, 0, 1, 0, 0, 1,
+                   12, 0, 0, 15, 0, 0, 20, 0, 0,
+                   0, 12, 0, 0, 15, 0, 0, 20, 0,
+                   0, 0, 12, 0, 0, 15, 0, 0, 20,
+                   1, 1, 1, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 1, 1, 1, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 1, 1, 1,
+                   900, -750, 0, 900, -750, 0, 900, -750, 0,
+                   0, 450, -900, 0, 450, -900, 0, 450, -900,
+                   -450, 0, 750, -450, 0, 750, -450, 0, 750),
+                 ncol = 9, byrow = TRUE)
+constr.dir <- c('<=', '<=', '<=', '<=', '<=', '<=', '<=', '<=', '<=',
+                '=', '=', '=')
+constr.rhs <- c(750, 900, 450, 13000, 12000, 5000, 750, 1200, 900, 0, 0, 0)
+
+# Solve LP
+prod.sol <- lp('max', obj.fun, constr, constr.dir, constr.rhs,
+               compute.sens = TRUE)
+
+```
+
+# Solution
+
+The solution to the LP is:
+
+```{r}
+# LP solution
+prod.sol$objval
+prod.sol$solution
+prod.sol$duals
+```
+
+From the solutions, we can find the optimal number of products with each size produced at each plant, which is listed in the table below:
+
+| Plant | Small size | Medium size | Large size |
+|:-----:|:----------:|:-----------:|:----------:|
+|   1   |      0     |    177.78   |   516.67   |
+|   2   |   166.67   |    666.67   |      0     |
+|   3   |   416.67   |      0      |      0     |
+
+the optimal profit is then: $696,000.
+
+However, as the number of products must be integers, the solutions will be rounded to integers to produce meaningful results, as:
+
+| Plant | Small size | Medium size | Large size |
+|:-----:|:----------:|:-----------:|:----------:|
+|   1   |      0     |     178     |     517    |
+|   2   |     167    |     667     |      0     |
+|   3   |     417    |      0      |      0     |
+
+```{r}
+max.profit <- sum(c(0, 167, 417, 178, 667, 0, 517, 0, 0) * obj.fun)
+max.profit
+```
+
+The maximum profit in this case is $696,540. 
+
+
